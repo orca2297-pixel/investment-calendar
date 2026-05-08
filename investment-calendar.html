@@ -1,0 +1,635 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0">
+<title>투자 이벤트 캘린더</title>
+<style>
+  @import url('https://fonts.googleapis.com/css2?family=DM+Mono:wght@300;400;500&family=Noto+Sans+KR:wght@300;400;500;700&display=swap');
+
+  :root {
+    --bg: #f5f5f8;
+    --surface: #ffffff;
+    --surface2: #eeeef5;
+    --border: #dcdce8;
+    --text: #1a1a2e;
+    --muted: #8888aa;
+    --accent: #5b4de0;
+    --accent2: #e07a2a;
+    --green: #00a86b;
+    --red: #e03030;
+    --blue: #2271d1;
+    --yellow: #c68a00;
+
+    /* 카테고리 색상 */
+    --cat-macro: #5b4de0;
+    --cat-us: #2271d1;
+    --cat-kr: #00a86b;
+    --cat-sector: #c68a00;
+    --cat-risk: #e03030;
+  }
+
+  * { margin:0; padding:0; box-sizing:border-box; -webkit-tap-highlight-color:transparent; }
+
+  body {
+    background: var(--bg);
+    color: var(--text);
+    font-family: 'Noto Sans KR', sans-serif;
+    min-height: 100vh;
+    padding-bottom: 40px;
+  }
+
+  /* 헤더 */
+  .header {
+    background: var(--surface);
+    border-bottom: 1px solid var(--border);
+    padding: 14px 18px;
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    position: sticky;
+    top: 0;
+    z-index: 100;
+  }
+
+  .logo {
+    font-family: 'DM Mono', monospace;
+    font-size: 12px;
+    color: var(--accent);
+    letter-spacing: 2px;
+  }
+
+  .header-right {
+    display: flex;
+    gap: 8px;
+    align-items: center;
+  }
+
+  .filter-btn {
+    background: none;
+    border: 1px solid var(--border);
+    color: var(--muted);
+    padding: 5px 10px;
+    border-radius: 20px;
+    font-size: 10px;
+    font-family: 'DM Mono', monospace;
+    cursor: pointer;
+    transition: all 0.2s;
+  }
+
+  .filter-btn.active {
+    border-color: var(--accent);
+    color: var(--accent);
+    background: rgba(124,106,247,0.1);
+  }
+
+  /* 월 네비게이션 */
+  .month-nav {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding: 16px 18px 10px;
+  }
+
+  .month-title {
+    font-family: 'DM Mono', monospace;
+    font-size: 20px;
+    font-weight: 500;
+    color: var(--text);
+  }
+
+  .nav-btn {
+    background: var(--surface2);
+    border: 1px solid var(--border);
+    color: var(--text);
+    width: 32px;
+    height: 32px;
+    border-radius: 8px;
+    font-size: 16px;
+    cursor: pointer;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    transition: all 0.15s;
+  }
+
+  .nav-btn:active { background: var(--accent); color: white; }
+
+  /* 달력 그리드 */
+  .cal-wrap { padding: 0 12px; }
+
+  .day-labels {
+    display: grid;
+    grid-template-columns: repeat(7, 1fr);
+    gap: 2px;
+    margin-bottom: 4px;
+  }
+
+  .day-label {
+    text-align: center;
+    font-size: 10px;
+    color: var(--muted);
+    font-family: 'DM Mono', monospace;
+    padding: 4px 0;
+  }
+
+  .day-label:first-child { color: #ff7070; }
+  .day-label:last-child { color: var(--blue); }
+
+  .cal-grid {
+    display: grid;
+    grid-template-columns: repeat(7, 1fr);
+    gap: 2px;
+  }
+
+  .cal-cell {
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: 8px;
+    min-height: 56px;
+    padding: 6px 5px 4px;
+    cursor: pointer;
+    transition: all 0.15s;
+    position: relative;
+    overflow: hidden;
+  }
+
+  .cal-cell:active { background: var(--surface2); }
+  .cal-cell.today { border-color: var(--accent); }
+  .cal-cell.today .cell-date { color: var(--accent); }
+  .cal-cell.other-month { opacity: 0.3; }
+  .cal-cell.sunday .cell-date { color: #ff7070; }
+  .cal-cell.saturday .cell-date { color: var(--blue); }
+  .cal-cell.selected { background: rgba(124,106,247,0.15); border-color: var(--accent); }
+
+  .cell-date {
+    font-family: 'DM Mono', monospace;
+    font-size: 12px;
+    color: var(--muted);
+    margin-bottom: 3px;
+  }
+
+  .cell-dots {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 2px;
+  }
+
+  .dot {
+    width: 5px;
+    height: 5px;
+    border-radius: 50%;
+    flex-shrink: 0;
+  }
+
+  /* 이벤트 리스트 */
+  .event-panel {
+    padding: 14px 14px 0;
+  }
+
+  .panel-title {
+    font-family: 'DM Mono', monospace;
+    font-size: 11px;
+    color: var(--muted);
+    letter-spacing: 2px;
+    margin-bottom: 10px;
+  }
+
+  .event-card {
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: 10px;
+    padding: 12px 14px;
+    margin-bottom: 8px;
+    display: flex;
+    gap: 12px;
+    align-items: flex-start;
+  }
+
+  .event-bar {
+    width: 3px;
+    border-radius: 3px;
+    min-height: 40px;
+    flex-shrink: 0;
+    align-self: stretch;
+  }
+
+  .event-body { flex: 1; }
+
+  .event-date-str {
+    font-family: 'DM Mono', monospace;
+    font-size: 10px;
+    color: var(--muted);
+    margin-bottom: 3px;
+  }
+
+  .event-title {
+    font-size: 13px;
+    font-weight: 500;
+    color: var(--text);
+    margin-bottom: 4px;
+    line-height: 1.4;
+  }
+
+  .event-desc {
+    font-size: 11px;
+    color: var(--muted);
+    line-height: 1.5;
+  }
+
+  .event-tag {
+    display: inline-block;
+    padding: 2px 7px;
+    border-radius: 20px;
+    font-size: 9px;
+    font-family: 'DM Mono', monospace;
+    font-weight: 500;
+    margin-top: 5px;
+    letter-spacing: 1px;
+  }
+
+  /* 중요도 */
+  .imp-high .event-title::before { content: '🔴 '; }
+  .imp-mid .event-title::before { content: '🟡 '; }
+  .imp-low .event-title::before { content: '🔵 '; }
+
+  /* 범례 */
+  .legend {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 8px;
+    padding: 10px 14px;
+  }
+
+  .legend-item {
+    display: flex;
+    align-items: center;
+    gap: 4px;
+    font-size: 10px;
+    color: var(--muted);
+  }
+
+  .legend-dot {
+    width: 12px;
+    height: 12px;
+    border-radius: 3px;
+  }
+
+  /* 탭 */
+  .tabs {
+    display: flex;
+    gap: 4px;
+    padding: 10px 14px 4px;
+    overflow-x: auto;
+  }
+
+  .tab {
+    background: var(--surface2);
+    border: 1px solid var(--border);
+    color: var(--muted);
+    padding: 6px 12px;
+    border-radius: 20px;
+    font-size: 11px;
+    cursor: pointer;
+    white-space: nowrap;
+    transition: all 0.2s;
+    flex-shrink: 0;
+  }
+
+  .tab.active {
+    background: var(--accent);
+    border-color: var(--accent);
+    color: white;
+  }
+
+  .empty-msg {
+    text-align: center;
+    color: var(--muted);
+    font-size: 12px;
+    padding: 30px 0;
+    font-family: 'DM Mono', monospace;
+  }
+
+  /* 이번달 요약 */
+  .month-summary {
+    margin: 6px 14px 4px;
+    background: var(--surface2);
+    border-radius: 10px;
+    padding: 10px 14px;
+    display: flex;
+    gap: 16px;
+    align-items: center;
+  }
+
+  .summary-num {
+    font-family: 'DM Mono', monospace;
+    font-size: 22px;
+    font-weight: 500;
+    color: var(--accent);
+  }
+
+  .summary-label {
+    font-size: 10px;
+    color: var(--muted);
+    margin-top: 2px;
+  }
+
+  .divider { width: 1px; background: var(--border); align-self: stretch; }
+
+  .upcoming-badge {
+    background: rgba(255,80,80,0.15);
+    border: 1px solid rgba(255,80,80,0.3);
+    border-radius: 6px;
+    padding: 6px 10px;
+    margin-left: auto;
+  }
+
+  .upcoming-label { font-size: 9px; color: var(--red); font-family:'DM Mono',monospace; }
+  .upcoming-val { font-size: 13px; font-weight: 700; color: var(--red); }
+</style>
+</head>
+<body>
+
+<div class="header">
+  <div class="logo">INVEST CAL</div>
+  <div class="header-right">
+    <div id="today-str" style="font-family:'DM Mono',monospace;font-size:10px;color:var(--muted);"></div>
+  </div>
+</div>
+
+<!-- 월 네비 -->
+<div class="month-nav">
+  <button class="nav-btn" onclick="changeMonth(-1)">‹</button>
+  <div class="month-title" id="month-title"></div>
+  <button class="nav-btn" onclick="changeMonth(1)">›</button>
+</div>
+
+<!-- 범례 -->
+<div class="legend">
+  <div class="legend-item"><div class="legend-dot" style="background:var(--cat-macro)"></div> 매크로·금리</div>
+  <div class="legend-item"><div class="legend-dot" style="background:var(--cat-us)"></div> 🇺🇸 미장 실적</div>
+  <div class="legend-item"><div class="legend-dot" style="background:var(--cat-kr)"></div> 🇰🇷 국장 실적</div>
+  <div class="legend-item"><div class="legend-dot" style="background:var(--cat-sector)"></div> 섹터 이슈</div>
+  <div class="legend-item"><div class="legend-dot" style="background:var(--cat-risk)"></div> ⚠️ 리스크</div>
+</div>
+
+<!-- 달력 -->
+<div class="cal-wrap">
+  <div class="day-labels">
+    <div class="day-label">일</div>
+    <div class="day-label">월</div>
+    <div class="day-label">화</div>
+    <div class="day-label">수</div>
+    <div class="day-label">목</div>
+    <div class="day-label">금</div>
+    <div class="day-label">토</div>
+  </div>
+  <div class="cal-grid" id="cal-grid"></div>
+</div>
+
+<!-- 이번달 요약 -->
+<div class="month-summary">
+  <div>
+    <div class="summary-num" id="total-events">—</div>
+    <div class="summary-label">이번달 이벤트</div>
+  </div>
+  <div class="divider"></div>
+  <div>
+    <div class="summary-num" id="high-events" style="color:var(--red)">—</div>
+    <div class="summary-label">🔴 고영향</div>
+  </div>
+  <div class="upcoming-badge" id="next-event-box" style="display:none">
+    <div class="upcoming-label">NEXT</div>
+    <div class="upcoming-val" id="next-event-name">—</div>
+  </div>
+</div>
+
+<!-- 탭 -->
+<div class="tabs">
+  <div class="tab active" onclick="setTab('all',this)">전체</div>
+  <div class="tab" onclick="setTab('macro',this)" style="border-bottom:3px solid var(--cat-macro)">매크로·금리</div>
+  <div class="tab" onclick="setTab('us',this)" style="border-bottom:3px solid var(--cat-us)">🇺🇸 미장</div>
+  <div class="tab" onclick="setTab('kr',this)" style="border-bottom:3px solid var(--cat-kr)">🇰🇷 국장</div>
+  <div class="tab" onclick="setTab('sector',this)" style="border-bottom:3px solid var(--cat-sector)">섹터 이슈</div>
+  <div class="tab" onclick="setTab('risk',this)" style="border-bottom:3px solid var(--cat-risk)">⚠️ 리스크</div>
+</div>
+
+<!-- 이벤트 리스트 -->
+<div class="event-panel" id="event-panel"></div>
+
+<script>
+// =============================================
+// 이벤트 데이터 (매주 월요일 업데이트)
+// 형식: { date:'YYYY-MM-DD', title, desc, cat, imp:'high'|'mid'|'low', tag }
+// =============================================
+const EVENTS = [
+  // === 5월 2026 ===
+  // 매크로
+  { date:'2026-05-08', title:'미국 4월 고용보고서(NFP)', desc:'비농업 취업자수 발표. 예상치 6.2만명. 결과에 따라 연준 금리 경로 재조정 가능', cat:'macro', imp:'high', tag:'고용' },
+  { date:'2026-05-13', title:'미국 4월 CPI 발표', desc:'소비자물가지수. 이란전쟁발 에너지 가격 영향 반영 여부 주목. 예상 전월比 +0.3%', cat:'macro', imp:'high', tag:'인플레이션' },
+  { date:'2026-05-16', title:'케빈 워시 연준 의장 취임', desc:'파월 후임. 금리 인하에 수용적 인물로 평가. 취임 후 첫 발언 주목', cat:'macro', imp:'high', tag:'FOMC' },
+  { date:'2026-05-21', title:'미국 4월 PCE 발표', desc:'연준 선호 물가 지표. CPI 결과와 함께 6월 FOMC 금리 결정 핵심 데이터', cat:'macro', imp:'mid', tag:'인플레이션' },
+  { date:'2026-06-16', title:'FOMC 6월 금리결정', desc:'2026년 4번째 회의. 금리 인하 기대 여부 시장 주목. 점도표 포함 발표', cat:'macro', imp:'high', tag:'금리' },
+  { date:'2026-07-14', title:'미국 6월 CPI 발표', desc:'하반기 금리 경로 결정의 핵심 지표', cat:'macro', imp:'high', tag:'인플레이션' },
+  { date:'2026-07-28', title:'FOMC 7월 금리결정', desc:'5번째 회의. 하반기 첫 금리 인하 가능성 논의 예상', cat:'macro', imp:'high', tag:'금리' },
+
+  // 미장 실적
+  { date:'2026-05-20', title:'엔비디아(NVDA) 실적발표', desc:'AI 반도체 수요의 바로미터. 예상 매출 786억달러, EPS 1.76달러. 어닝 서프라이즈 여부가 글로벌 반도체주 방향 결정', cat:'us', imp:'high', tag:'반도체' },
+  { date:'2026-07-28', title:'애플(AAPL) 실적발표', desc:'3Q FY2026. AI 기능 적용 아이폰 판매량 주목. 예상 EPS 1.95달러', cat:'us', imp:'mid', tag:'빅테크' },
+  { date:'2026-07-29', title:'메타(META) 실적발표', desc:'AI 광고 매출 성장세 및 라마 AI 업데이트 주목. 예상 EPS 6.70달러', cat:'us', imp:'mid', tag:'빅테크' },
+  { date:'2026-07-30', title:'아마존(AMZN) 실적발표', desc:'AWS 클라우드 성장률 및 AI 투자 규모 발표. 예상 EPS 2.78달러', cat:'us', imp:'mid', tag:'빅테크' },
+  { date:'2026-07-28', title:'알파벳(GOOGL) 실적발표', desc:'구글 검색 AI 통합 성과 및 클라우드 매출 주목. 예상 EPS 5.11달러', cat:'us', imp:'mid', tag:'빅테크' },
+
+  // 국장 실적
+  { date:'2026-07-23', title:'삼성전자 2Q26 실적발표', desc:'HBM 공급 회복 여부, DS부문 수익성 핵심. 시장 기대 매출 146조원 수준', cat:'kr', imp:'high', tag:'반도체' },
+  { date:'2026-07-29', title:'SK하이닉스 2Q26 실적발표', desc:'HBM3E 매출 비중 확대 확인. 예상 매출 76조원. AI 메모리 수요 가시화', cat:'kr', imp:'high', tag:'반도체' },
+  { date:'2026-05-15', title:'현대차 1Q26 실적발표', desc:'환율 수혜 및 북미 판매 호조 기대. EV 믹스 개선 여부 주목', cat:'kr', imp:'mid', tag:'자동차' },
+  { date:'2026-05-14', title:'LG에너지솔루션 1Q26 실적', desc:'북미 전기차 수요 회복 및 AMPC 수혜 확인. 2차전지 업황 바로미터', cat:'kr', imp:'mid', tag:'2차전지' },
+  { date:'2026-05-09', title:'셀트리온 1Q26 실적발표', desc:'바이오시밀러 미국 시장 침투율 및 신약 임상 진행 현황', cat:'kr', imp:'low', tag:'바이오' },
+
+  // 섹터 이슈
+  { date:'2026-05-18', title:'삼성전자 Citi Pan-Asia Conference', desc:'AI 반도체·HBM 공급 전략 발표. 외국인 수급에 영향', cat:'sector', imp:'mid', tag:'IR행사' },
+  { date:'2026-05-29', title:'MSCI 반기 리밸런싱 발표', desc:'편입·편출 종목 수급 변화. 6월 1일 리밸런싱 실행. 국내 대형주 수급 영향', cat:'sector', imp:'high', tag:'지수편입' },
+  { date:'2026-05-20', title:'엔비디아 블랙웰 B300 공급 업데이트', desc:'실적발표 콘퍼런스콜에서 공급 일정 발표 예상. HBM 수요에 직결', cat:'sector', imp:'high', tag:'AI반도체' },
+
+  // 리스크
+  { date:'2026-05-08', title:'미·이란 핵합의 협상 진행중', desc:'호르무즈 해협 통제권 관련 협상. 타결 시 유가 급락→반도체·기술주 수혜. 결렬 시 에너지 섹터 강세', cat:'risk', imp:'high', tag:'지정학' },
+  { date:'2026-05-12', title:'트럼프 방중 일정', desc:'미중 무역·AI 관련 협상 가능성. 반도체 수출 규제 변화 주목', cat:'risk', imp:'high', tag:'무역' },
+];
+
+// 색상 맵
+const CAT_COLOR = {
+  macro: 'var(--cat-macro)',
+  us: 'var(--cat-us)',
+  kr: 'var(--cat-kr)',
+  sector: 'var(--cat-sector)',
+  risk: 'var(--cat-risk)',
+};
+
+const CAT_LABEL = {
+  macro:'매크로·금리', us:'미장 실적', kr:'국장 실적', sector:'섹터 이슈', risk:'리스크'
+};
+
+let curYear, curMonth, selectedDate = null, curTab = 'all';
+
+function init() {
+  const now = new Date();
+  curYear = now.getFullYear();
+  curMonth = now.getMonth();
+  const todayStr = now.toLocaleDateString('ko-KR', {year:'numeric',month:'long',day:'numeric',weekday:'short'});
+  document.getElementById('today-str').textContent = todayStr;
+  render();
+}
+
+function changeMonth(d) {
+  curMonth += d;
+  if (curMonth > 11) { curMonth = 0; curYear++; }
+  if (curMonth < 0) { curMonth = 11; curYear--; }
+  selectedDate = null;
+  render();
+}
+
+function setTab(tab, el) {
+  curTab = tab;
+  document.querySelectorAll('.tab').forEach(t => t.classList.remove('active'));
+  el.classList.add('active');
+  renderEvents();
+}
+
+function toDateStr(y, m, d) {
+  return `${y}-${String(m+1).padStart(2,'0')}-${String(d).padStart(2,'0')}`;
+}
+
+function render() {
+  const months = ['January','February','March','April','May','June','July','August','September','October','November','December'];
+  document.getElementById('month-title').textContent = `${months[curMonth]} ${curYear}`;
+  renderCal();
+  renderEvents();
+  renderSummary();
+}
+
+function renderCal() {
+  const grid = document.getElementById('cal-grid');
+  grid.innerHTML = '';
+  const now = new Date();
+  const todayStr = toDateStr(now.getFullYear(), now.getMonth(), now.getDate());
+
+  const firstDay = new Date(curYear, curMonth, 1).getDay();
+  const daysInMonth = new Date(curYear, curMonth+1, 0).getDate();
+  const daysInPrevMonth = new Date(curYear, curMonth, 0).getDate();
+
+  // 이벤트 날짜 인덱스
+  const evMap = {};
+  EVENTS.forEach(e => {
+    if (!evMap[e.date]) evMap[e.date] = [];
+    evMap[e.date].push(e);
+  });
+
+  let cells = [];
+  // 이전달
+  for (let i = firstDay - 1; i >= 0; i--) {
+    cells.push({ day: daysInPrevMonth - i, cur: false, y: curYear, m: curMonth - 1 });
+  }
+  // 이번달
+  for (let d = 1; d <= daysInMonth; d++) {
+    cells.push({ day: d, cur: true, y: curYear, m: curMonth });
+  }
+  // 다음달
+  let needed = 42 - cells.length;
+  for (let d = 1; d <= needed; d++) {
+    cells.push({ day: d, cur: false, y: curYear, m: curMonth + 1 });
+  }
+
+  cells.forEach((c, i) => {
+    const m = ((c.m % 12) + 12) % 12;
+    const y = c.m < 0 ? c.y - 1 : c.m > 11 ? c.y + 1 : c.y;
+    const ds = toDateStr(y, m, c.day);
+    const evs = evMap[ds] || [];
+    const isToday = ds === todayStr;
+    const isSel = ds === selectedDate;
+    const dow = i % 7;
+
+    const el = document.createElement('div');
+    el.className = 'cal-cell' +
+      (!c.cur ? ' other-month' : '') +
+      (isToday ? ' today' : '') +
+      (isSel ? ' selected' : '') +
+      (dow === 0 ? ' sunday' : '') +
+      (dow === 6 ? ' saturday' : '');
+
+    let dots = evs.slice(0, 4).map(e =>
+      `<div class="dot" style="background:${CAT_COLOR[e.cat]}"></div>`
+    ).join('');
+
+    el.innerHTML = `<div class="cell-date">${c.day}</div><div class="cell-dots">${dots}</div>`;
+    el.onclick = () => { selectedDate = ds; render(); };
+    grid.appendChild(el);
+  });
+}
+
+function renderEvents() {
+  const panel = document.getElementById('event-panel');
+  let evs = EVENTS.filter(e => {
+    const d = new Date(e.date);
+    const inMonth = d.getFullYear() === curYear && d.getMonth() === curMonth;
+    const inDate = selectedDate ? e.date === selectedDate : inMonth;
+    const inTab = curTab === 'all' || e.cat === curTab;
+    return inDate && inTab;
+  }).sort((a,b) => a.date.localeCompare(b.date));
+
+  if (evs.length === 0) {
+    panel.innerHTML = `<div class="empty-msg">이벤트 없음</div>`;
+    return;
+  }
+
+  const label = selectedDate
+    ? `${selectedDate.slice(5).replace('-','/')} 이벤트`
+    : `${curYear}년 ${curMonth+1}월 전체 (${evs.length}건)`;
+
+  panel.innerHTML = `<div class="panel-title">${label}</div>` +
+    evs.map(e => {
+      const d = new Date(e.date + 'T00:00:00');
+      const dayNames = ['일','월','화','수','목','금','토'];
+      const dateStr = `${d.getMonth()+1}/${d.getDate()}(${dayNames[d.getDay()]})`;
+      return `
+        <div class="event-card imp-${e.imp}">
+          <div class="event-bar" style="background:${CAT_COLOR[e.cat]}"></div>
+          <div class="event-body">
+            <div class="event-date-str">${dateStr} · ${CAT_LABEL[e.cat]}</div>
+            <div class="event-title">${e.title}</div>
+            <div class="event-desc">${e.desc}</div>
+            <span class="event-tag" style="background:${CAT_COLOR[e.cat]}22;color:${CAT_COLOR[e.cat]};border:1px solid ${CAT_COLOR[e.cat]}44">${e.tag}</span>
+          </div>
+        </div>`;
+    }).join('');
+}
+
+function renderSummary() {
+  const now = new Date();
+  const todayStr = toDateStr(now.getFullYear(), now.getMonth(), now.getDate());
+  const monthEvs = EVENTS.filter(e => {
+    const d = new Date(e.date);
+    return d.getFullYear() === curYear && d.getMonth() === curMonth;
+  });
+
+  document.getElementById('total-events').textContent = monthEvs.length;
+  document.getElementById('high-events').textContent = monthEvs.filter(e => e.imp === 'high').length;
+
+  // 다음 이벤트
+  const upcoming = EVENTS.filter(e => e.date >= todayStr)
+    .sort((a,b) => a.date.localeCompare(b.date))[0];
+
+  if (upcoming) {
+    const d = new Date(upcoming.date + 'T00:00:00');
+    const diff = Math.ceil((d - now) / 86400000);
+    document.getElementById('next-event-box').style.display = 'block';
+    document.getElementById('next-event-name').textContent =
+      diff === 0 ? '오늘!' : `D-${diff}`;
+    document.getElementById('next-event-box').title = upcoming.title;
+  }
+}
+
+init();
+</script>
+</body>
+</html>
